@@ -800,6 +800,27 @@ struct btrfs_file_extent_item {
 struct btrfs_csum_item {
 	u8 csum;
 } __attribute__ ((__packed__));
+/*+smk*/
+struct btrfs_device_stats_item {
+	/*
+	* grow this item struct at the end for future enhancements and keep
+	* the existing values unchanged
+	*/
+	__le64 cnt_write_io_errs; /* EIO or EREMOTEIO from lower layers */
+	__le64 cnt_read_io_errs; /* EIO or EREMOTEIO from lower layers */
+	__le64 cnt_flush_io_errs; /* EIO or EREMOTEIO from lower layers */
+
+	/* stats for indirect indications for I/O failures */
+	__le64 cnt_corruption_errs; /* checksum error, bytenr error or
+					* contents is illegal: this is an
+					* indication that the block was damaged
+					* during read or write, or written to
+					* wrong location or read from wrong
+					* location */
+	 __le64 cnt_generation_errs; /* an indication that blocks have not
+					* been written */
+} __attribute__ ((__packed__));
+/*+smk*/
 
 /* different types of block groups (and chunks) */
 #define BTRFS_BLOCK_GROUP_DATA		(1ULL << 0)
@@ -1467,7 +1488,13 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_DEV_EXTENT_KEY	204
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
-
+/*+smk*/
+/*
+* Persistantly stores the io stats in the device tree.
+* One key for all stats, (0, BTRFS_DEVICE_STATS_KEY, devid).
+*/
+#define BTRFS_DEVICE_STATS_KEY 248
+/*+smk*/
 #define BTRFS_BALANCE_ITEM_KEY	248
 
 /*
@@ -2363,7 +2390,32 @@ static inline u32 btrfs_file_extent_inline_item_len(struct extent_buffer *eb,
 	offset = offsetof(struct btrfs_file_extent_item, disk_bytenr);
 	return btrfs_item_size(eb, e) - offset;
 }
+/*+smk*/
+/* btrfs_device_stats_item */
+BTRFS_SETGET_FUNCS(device_stats_cnt_write_io_errs,
+			struct btrfs_device_stats_item, cnt_write_io_errs, 64);
+BTRFS_SETGET_FUNCS(device_stats_cnt_read_io_errs,
+			struct btrfs_device_stats_item, cnt_read_io_errs, 64);
+BTRFS_SETGET_FUNCS(device_stats_cnt_flush_io_errs,
+			struct btrfs_device_stats_item, cnt_flush_io_errs, 64);
+BTRFS_SETGET_FUNCS(device_stats_cnt_corruption_errs,
+			struct btrfs_device_stats_item, cnt_corruption_errs, 64);
+BTRFS_SETGET_FUNCS(device_stats_cnt_generation_errs,
+			struct btrfs_device_stats_item, cnt_generation_errs, 64);
 
+BTRFS_SETGET_STACK_FUNCS(stack_device_stats_cnt_write_io_errs,
+			struct btrfs_device_stats_item, cnt_write_io_errs, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_stats_cnt_read_io_errs,
+			struct btrfs_device_stats_item, cnt_read_io_errs, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_stats_cnt_flush_io_errs,
+			struct btrfs_device_stats_item, cnt_flush_io_errs, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_stats_cnt_corruption_errs,
+			struct btrfs_device_stats_item, cnt_corruption_errs,
+			64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_stats_cnt_generation_errs,
+			struct btrfs_device_stats_item, cnt_generation_errs,
+			64);
+/*+smk*/
 static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -2955,7 +3007,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 int btrfs_init_sysfs(void);
 void btrfs_exit_sysfs(void);
 int btrfs_create_device(struct kobject *super_kobj, u8 *label);
-int btrfs_kill_device(struct kobject *kobj);
+void btrfs_kill_device(struct kobject *kobj);
 
 /* xattr.c */
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);

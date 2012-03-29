@@ -989,7 +989,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	/* Now that the super block is setup we make calls to the required
 	 * sysfs functions.
 	 */
-	error = btrfs_create_device(&fs_info->super_kobj,fs_info->super_copy->label);
+	error = btrfs_create_device(&fs_info->super_kobj,device_name);
 	if(error < 0){
 		/* Just because the sysfs could not be mounted the
 		 * whole FS should not die.

@@ -105,7 +105,17 @@ struct btrfs_device {
 	struct bio *flush_bio;
 	struct completion flush_wait;
 	int nobarriers;
-
+	/*+smk*/
+	/* disk I/O failure stats. For detailed description refer to
+	* struct btrfs_device_stats_item in ctree.h */
+	int device_stats_valid;
+	int device_stats_dirty; /* counters need to be written to disk */
+	atomic_t cnt_write_io_errs;
+	atomic_t cnt_read_io_errs;
+	atomic_t cnt_flush_io_errs;
+	atomic_t cnt_corruption_errs;
+	atomic_t cnt_generation_errs;
+	/*+smk*/
 };
 
 struct btrfs_fs_devices {
@@ -281,4 +291,37 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
+/*+smk*/
+struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
+			u64 logical, int mirror_num);
+int btrfs_init_device_stats(struct btrfs_fs_info *fs_info);
+int btrfs_run_device_stats(struct btrfs_trans_handle *trans,
+					struct btrfs_fs_info *fs_info);
+void btrfs_device_stat_print_on_error(struct btrfs_device *device);
+
+static inline void btrfs_device_stat_inc(atomic_t *cnt)
+{
+	atomic_inc(cnt);
+}
+
+static inline int btrfs_device_stat_read(atomic_t *cnt)
+{
+	return atomic_read(cnt);
+}
+
+static inline int btrfs_device_stat_read_and_reset(atomic_t *cnt)
+{
+	return atomic_xchg(cnt, 0);
+}
+
+static inline void btrfs_device_stat_reset(atomic_t *cnt)
+{
+	atomic_set(cnt, 0);
+}
+
+static inline void btrfs_device_stat_set(atomic_t *cnt, unsigned long val)
+{
+	atomic_set(cnt, val);
+}
+/*+smk*/
 #endif
