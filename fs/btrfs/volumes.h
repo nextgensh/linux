@@ -116,6 +116,9 @@ struct btrfs_device {
 	atomic_t cnt_corruption_errs;
 	atomic_t cnt_generation_errs;
 	/*+smk*/
+
+	/* Kobject used by the sysfs interface. */
+	struct kobject device_kobj;
 };
 
 struct btrfs_fs_devices {

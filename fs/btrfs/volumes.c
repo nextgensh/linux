@@ -556,6 +556,9 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		if (device->can_discard)
 			fs_devices->num_can_discard--;
 
+		/* Remove it from the sysfs interface. */
+		btrfs_kill_device(&device->device_kobj);
+
 		new_device = kmalloc(sizeof(*new_device), GFP_NOFS);
 		BUG_ON(!new_device);
 		memcpy(new_device, device, sizeof(*new_device));
@@ -679,6 +682,8 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 				 &fs_devices->alloc_list);
 		}
 		brelse(bh);
+		/* Add this device to the sysfs interface. */
+		 btrfs_create_device(&device->device_kobj,device->name);
 		continue;
 
 error_brelse:
