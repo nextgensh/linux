@@ -1901,6 +1901,11 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
 		/* try to remap that extent elsewhere? */
 		bio_put(bio);
+		/*+smk*/
+		btrfs_device_stat_inc(&dev->cnt_write_io_errs);
+       	dev->device_stats_dirty = 1;
+       	btrfs_device_stat_print_on_error(dev);
+		/*+smk*/
 		return -EIO;
 	}
 
@@ -2299,10 +2304,33 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
 			ret = tree->ops->readpage_end_io_hook(page, start, end,
 							      state);
-			if (ret)
+			/*+smk*/
+			if (ret) {
+				/* no IO indicated but software detected errors
+				* in the block, either checksum errros or
+				* issues with the contents */
+				int failed_mirror = (int)(uintptr_t)
+					bio->bi_bdev;
+				struct btrfs_root *root =
+                   BTRFS_I(page->mapping->host)->root;
+				struct btrfs_device *device;
+				
 				uptodate = 0;
-			else
+		
+				device = btrfs_find_device_for_logical(
+					root, start,
+					(int)failed_mirror);
+				if (device) {
+					btrfs_device_stat_inc(
+						&device->cnt_corruption_errs);
+					device->device_stats_dirty = 1;
+					btrfs_device_stat_print_on_error(
+						device);
+				}
+			}else{
 				clean_io_failure(start, page);
+			}
+		/*+smk*/
 		}
 		if (!uptodate) {
 			int failed_mirror;
