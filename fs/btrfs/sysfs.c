@@ -413,7 +413,6 @@ static ssize_t device_uuid_show(struct kobject *btrfs_kobj, \
 	device = device_stats(btrfs_kobj);
 	return sprintf(buf, "%s\n", device->uuid);
 }
-<<<<<<< HEAD
 
 /* Show function for label. */
 static ssize_t device_label_show(struct kobject *btrfs_kobj, \
@@ -459,45 +458,6 @@ static BTRFS_DEVICE_ATTR(cnt_flush_io_errs,0444,NULL,NULL);
 static BTRFS_DEVICE_ATTR(cnt_corruption_errs,0444,NULL, NULL);
 static BTRFS_DEVICE_ATTR(cnt_generation_errs,0444,NULL,NULL);
 /*
-=======
-
-/* Show function for label. */
-static ssize_t device_label_show(struct kobject *btrfs_kobj, \
-	struct btrfs_device_attr *attr, char *buf)
-{
-	struct btrfs_fs_info *fs_info;
-
-	fs_info = container_of(btrfs_kobj,struct btrfs_fs_info,super_kobj);
-	return sprintf(buf, "%s\n", fs_info->super_copy->label);
-}
-
-/* Store function for label. */
-static ssize_t device_label_store(struct kobject *btrfs_kobj, \
-	struct btrfs_device_attr *attr, const char *buf, size_t len)
-{
-	struct btrfs_fs_info *fs_info;
-	struct btrfs_super_block *btrfs_sb;
-	struct btrfs_trans_handle *trans;
-
-	fs_info = container_of(btrfs_kobj,struct btrfs_fs_info,super_kobj);
-	btrfs_sb = fs_info->super_copy;
-	mutex_lock(&fs_info->volume_mutex);
-	trans = btrfs_start_transaction(fs_info->tree_root,0);
-	snprintf(btrfs_sb->label, BTRFS_LABEL_SIZE, "%s", buf);
-	btrfs_end_transaction(trans,fs_info->tree_root);
-	mutex_unlock(&fs_info->volume_mutex);
-
-	return strlen(buf);
-}
-
-/* Dummy store fucntion to avoid a kernel call trace. */
-static ssize_t dummy_store(struct kobject *btrfs_kobj, \
-	struct btrfs_device_attr *attr, const char *buf, size_t len)
-{
-	return 1;
-}
-
->>>>>>> 1bbad41de14ce38eb345247131cc72a9669a36a6
 static BTRFS_DEVICE_ATTR(uuid,0444,device_uuid_show, dummy_store);
 static BTRFS_DEVICE_ATTR(label,0666,device_label_show, device_label_store);
 static BTRFS_DEVICE_ATTR(cnt_write_io_errs,0444,device_write_io_err_show, dummy_store);
@@ -505,10 +465,7 @@ static BTRFS_DEVICE_ATTR(cnt_read_io_errs,0444,device_read_io_err_show, dummy_st
 static BTRFS_DEVICE_ATTR(cnt_flush_io_errs,0444,device_flush_io_err_show, dummy_store);
 static BTRFS_DEVICE_ATTR(cnt_corruption_errs,0444,device_corruption_err_show, dummy_store);
 static BTRFS_DEVICE_ATTR(cnt_generation_errs,0444,device_generation_err_show, dummy_store);
-<<<<<<< HEAD
 */
-=======
->>>>>>> 1bbad41de14ce38eb345247131cc72a9669a36a6
 
 static struct attribute *btrfs_device_default_attrs[] = {
 	ATTR_LIST(uuid),
@@ -617,11 +574,7 @@ int btrfs_init_sysfs(void)
 /* Function to create devices and place them under the devices
  * directory.
  */
-<<<<<<< HEAD
 int btrfs_create_device(struct kobject *super_kobj, char *dev_name)
-=======
-int btrfs_create_device(struct kobject *super_kobj, const char *dev_name)
->>>>>>> 1bbad41de14ce38eb345247131cc72a9669a36a6
 {
 	int ret;
 	//char device_name[256];
