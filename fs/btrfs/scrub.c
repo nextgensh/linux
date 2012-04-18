@@ -55,8 +55,13 @@ static int scrub_checksum_tree_block(struct scrub_dev *sdev,
 static int scrub_checksum_super(struct scrub_bio *sbio, void *buffer);
 static int scrub_fixup_check(struct scrub_bio *sbio, int ix);
 static void scrub_fixup_end_io(struct bio *bio, int err);
-static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
-			  struct page *page);
+//-smk static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
+//			  struct page *page);
+/*+smk*/
+static int scrub_fixup_io(int rw, struct btrfs_device *dev, sector_t sector,
+			struct page *page);
+/*+smk*/
+
 static void scrub_fixup(struct scrub_bio *sbio, int ix);
 
 #define SCRUB_PAGES_PER_BIO	16	/* 64k per bio */
@@ -563,7 +568,8 @@ static int scrub_recheck_error(struct scrub_bio *sbio, int ix)
 					DEFAULT_RATELIMIT_BURST);
 
 	if (sbio->err) {
-		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev, sector,
+//-smk		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev, sector,
+			if (scrub_fixup_io(READ, sbio->sdev->dev, sector,	/*+smk*/
 				   sbio->bio->bi_io_vec[ix].bv_page) == 0) {
 			if (scrub_fixup_check(sbio, ix) == 0)
 				return 0;
@@ -677,7 +683,8 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		if (i + 1 == sbio->spag[ix].mirror_num)
 			continue;
 
-		if (scrub_fixup_io(READ, bbio->stripes[i].dev->bdev,
+//-smk		if (scrub_fixup_io(READ, bbio->stripes[i].dev->bdev,
+			if(scrub_fixup_io(READ, bbio->stripes[i].dev, 	/*+smk*/
 				   bbio->stripes[i].physical >> 9,
 				   sbio->bio->bi_io_vec[ix].bv_page)) {
 			/* I/O-error, this is not a good copy */
@@ -694,7 +701,8 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 		/*
 		 * bi_io_vec[ix].bv_page now contains good data, write it back
 		 */
-		if (scrub_fixup_io(WRITE, sdev->dev->bdev,
+//-smk		if (scrub_fixup_io(WRITE, sdev->dev->bdev,
+			if (scrub_fixup_io(WRITE, sdev->dev,		/*+smk*/
 				   (sbio->physical + ix * PAGE_SIZE) >> 9,
 				   sbio->bio->bi_io_vec[ix].bv_page)) {
 			/* I/O-error, writeback failed, give up */
@@ -721,7 +729,8 @@ uncorrectable:
 				"logical %llu\n", (unsigned long long)logical);
 }
 
-static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
+// -smk static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
+static int scrub_fixup_io(int rw, struct btrfs_device *dev, sector_t sector,	/*+smk*/
 			 struct page *page)
 {
 	struct bio *bio = NULL;
@@ -729,7 +738,8 @@ static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(complete);
 
 	bio = bio_alloc(GFP_NOFS, 1);
-	bio->bi_bdev = bdev;
+//-smk	bio->bi_bdev = bdev;
+	bio->bi_bdev = dev->bdev;	/*+smk*/
 	bio->bi_sector = sector;
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 	bio->bi_end_io = scrub_fixup_end_io;
@@ -740,6 +750,19 @@ static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
 	wait_for_completion(&complete);
 
 	ret = !test_bit(BIO_UPTODATE, &bio->bi_flags);
+	/*+smk*/
+	if (ret) {
+		if (bio->bi_rw & WRITE)
+			btrfs_device_stat_inc(&dev->cnt_write_io_errs);
+		else
+			btrfs_device_stat_inc(&dev->cnt_read_io_errs);
+		if (WRITE_FLUSH == (bio->bi_rw & WRITE_FLUSH))
+			btrfs_device_stat_inc(&dev->cnt_flush_io_errs);
+		dev->device_stats_dirty = 1;
+		btrfs_device_stat_print_on_error(dev);
+	}
+	/*+smk*/
+
 	bio_put(bio);
 	return ret;
 }
@@ -749,7 +772,20 @@ static void scrub_bio_end_io(struct bio *bio, int err)
 	struct scrub_bio *sbio = bio->bi_private;
 	struct scrub_dev *sdev = sbio->sdev;
 	struct btrfs_fs_info *fs_info = sdev->dev->dev_root->fs_info;
+	/*+smk*/
+	if (-EIO == err || -EREMOTEIO == err) {
+		struct btrfs_device *dev = sdev->dev;
 
+		if (bio->bi_rw & WRITE)
+			btrfs_device_stat_inc(&dev->cnt_write_io_errs);
+		else
+			btrfs_device_stat_inc(&dev->cnt_read_io_errs);
+		if (WRITE_FLUSH == (bio->bi_rw & WRITE_FLUSH))
+			btrfs_device_stat_inc(&dev->cnt_flush_io_errs);
+		dev->device_stats_dirty = 1;
+		btrfs_device_stat_print_on_error(dev);
+	}
+	/*+smk*/
 	sbio->err = err;
 	sbio->bio = bio;
 
@@ -848,8 +884,14 @@ static int scrub_checksum_data(struct scrub_dev *sdev,
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.data_extents_scrubbed;
 	sdev->stat.data_bytes_scrubbed += PAGE_SIZE;
-	if (fail)
+	/*+smk*/
+	if (fail) {
 		++sdev->stat.csum_errors;
+		btrfs_device_stat_inc(&sdev->dev->cnt_corruption_errs);
+		sdev->dev->device_stats_dirty = 1;
+		btrfs_device_stat_print_on_error(sdev->dev);
+	}
+	/*+smk*/
 	spin_unlock(&sdev->stat_lock);
 
 	return fail;
@@ -895,9 +937,15 @@ static int scrub_checksum_tree_block(struct scrub_dev *sdev,
 
 	spin_lock(&sdev->stat_lock);
 	++sdev->stat.tree_extents_scrubbed;
-	sdev->stat.tree_bytes_scrubbed += PAGE_SIZE;
-	if (crc_fail)
+	sdev->stat.tree_bytes_scrubbed += PAGE_SIZE;	
+	/*+smk*/
+	if (crc_fail) {
 		++sdev->stat.csum_errors;
+		btrfs_device_stat_inc(&sdev->dev->cnt_corruption_errs);
+		sdev->dev->device_stats_dirty = 1;
+		btrfs_device_stat_print_on_error(sdev->dev);
+	}
+	/*+smk*/
 	if (fail)
 		++sdev->stat.verify_errors;
 	spin_unlock(&sdev->stat_lock);
@@ -931,9 +979,15 @@ static int scrub_checksum_super(struct scrub_bio *sbio, void *buffer)
 	crc = btrfs_csum_data(root, buffer + BTRFS_CSUM_SIZE, crc,
 			      PAGE_SIZE - BTRFS_CSUM_SIZE);
 	btrfs_csum_final(crc, csum);
-	if (memcmp(csum, s->csum, sbio->sdev->csum_size))
+//-smk	if (memcmp(csum, s->csum, sbio->sdev->csum_size))
+		/*+smk*/
+		if (memcmp(csum, s->csum, sdev->csum_size)) {
 		++fail;
-
+		btrfs_device_stat_inc(&sdev->dev->cnt_corruption_errs);
+		sdev->dev->device_stats_dirty = 1;
+		btrfs_device_stat_print_on_error(sdev->dev);
+		}
+		/*+smk*/
 	if (fail) {
 		/*
 		 * if we find an error in a super block, we just report it.

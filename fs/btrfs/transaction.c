@@ -28,7 +28,7 @@
 #include "locking.h"
 #include "tree-log.h"
 #include "inode-map.h"
-
+#include "volumes.h" //+smk
 #define BTRFS_ROOT_TRANS_TAG 0
 
 static noinline void put_transaction(struct btrfs_transaction *transaction)
@@ -716,6 +716,11 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 	BUG_ON(ret);
+
+	/*+smk*/
+	ret = btrfs_run_device_stats(trans, root->fs_info);
+	BUG_ON(ret);
+	/*+smk*/
 
 	eb = btrfs_lock_root_node(fs_info->tree_root);
 	btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb);
