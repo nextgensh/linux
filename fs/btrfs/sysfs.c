@@ -339,8 +339,9 @@ static struct kobj_type btrfs_ktype_device_dir = {
  * Setup for /sys/fs/btrfs/devices/<device> Directory
  */
 
-static struct btrfs_device* device_stats(struct kobject *btrfs_kobj)
+static inline struct btrfs_device* device_stats(struct kobject *btrfs_kobj)
 {
+	/*
 	struct btrfs_fs_info *container_fs_info;
 	struct btrfs_super_block *device_super_copy;
 	struct btrfs_dev_item *device_item;
@@ -359,10 +360,10 @@ static struct btrfs_device* device_stats(struct kobject *btrfs_kobj)
 	device_fsid = device_item->fsid;
 
 	device_root = container_of(&container_fs_info,struct btrfs_root,fs_info);
-
 	device = btrfs_find_device(device_root,device_id,device_uuid,device_fsid);
+	*/
 
-	return device;	
+	return container_of(btrfs_kobj, struct btrfs_device, device_kobj);  	
 }
 
 static ssize_t device_write_io_err_show(struct kobject *btrfs_kobj, \
@@ -443,6 +444,7 @@ static ssize_t device_label_store(struct kobject *btrfs_kobj, \
 	return strlen(buf);
 }
 
+/*
 static BTRFS_DEVICE_ATTR(uuid,0444,NULL, NULL);
 static BTRFS_DEVICE_ATTR(label,0666,NULL, NULL);
 static BTRFS_DEVICE_ATTR(cnt_write_io_errs,0444,NULL, NULL);
@@ -450,8 +452,7 @@ static BTRFS_DEVICE_ATTR(cnt_read_io_errs,0444,NULL,NULL);
 static BTRFS_DEVICE_ATTR(cnt_flush_io_errs,0444,NULL,NULL);
 static BTRFS_DEVICE_ATTR(cnt_corruption_errs,0444,NULL, NULL);
 static BTRFS_DEVICE_ATTR(cnt_generation_errs,0444,NULL,NULL);
-
-
+*/
 
 /* Store function for label. */
 /* Dummy store fucntion to avoid a kernel call trace. */
@@ -461,8 +462,6 @@ static ssize_t dummy_store(struct kobject *btrfs_kobj, \
 	return 1;
 }
 
-
-/*
 static BTRFS_DEVICE_ATTR(uuid,0444,device_uuid_show, dummy_store);
 static BTRFS_DEVICE_ATTR(label,0666,device_label_show, device_label_store);
 static BTRFS_DEVICE_ATTR(cnt_write_io_errs,0444,device_write_io_err_show, dummy_store);
@@ -470,7 +469,6 @@ static BTRFS_DEVICE_ATTR(cnt_read_io_errs,0444,device_read_io_err_show, dummy_st
 static BTRFS_DEVICE_ATTR(cnt_flush_io_errs,0444,device_flush_io_err_show, dummy_store);
 static BTRFS_DEVICE_ATTR(cnt_corruption_errs,0444,device_corruption_err_show, dummy_store);
 static BTRFS_DEVICE_ATTR(cnt_generation_errs,0444,device_generation_err_show, dummy_store);
-*/
 
 static struct attribute *btrfs_device_default_attrs[] = {
 	ATTR_LIST(uuid),

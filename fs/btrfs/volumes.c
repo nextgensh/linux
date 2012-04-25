@@ -683,7 +683,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		}
 		brelse(bh);
 		/* Add this device to the sysfs interface. */
-		 btrfs_create_device(&device->device_kobj,device->name);
+		btrfs_create_device(&device->device_kobj,device->name);
 		continue;
 
 error_brelse:
@@ -1243,6 +1243,9 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, root->fs_info->fsid, ptr, BTRFS_UUID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
+	/* Create a Sysfs entry for the device. */
+	btrfs_create_device(&device->device_kobj,device->name);
+
 	ret = 0;
 out:
 	btrfs_free_path(path);
@@ -1468,6 +1471,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		set_buffer_dirty(bh);
 		sync_dirty_buffer(bh);
 	}
+
+	/* 
+	 * At this point we must also remove the device from the Sysfs
+	 * entry.
+	 */
+	btrfs_kill_device(&device->device_kobj);
 
 	ret = 0;
 
