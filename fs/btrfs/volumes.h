@@ -105,7 +105,7 @@ struct btrfs_device {
 	struct bio *flush_bio;
 	struct completion flush_wait;
 	int nobarriers;
-	/*+smk*/
+
 	/* disk I/O failure stats. For detailed description refer to
 	* struct btrfs_device_stats_item in ctree.h */
 	int device_stats_valid;
@@ -115,9 +115,8 @@ struct btrfs_device {
 	atomic_t cnt_flush_io_errs;
 	atomic_t cnt_corruption_errs;
 	atomic_t cnt_generation_errs;
-	/*+smk*/
 
-	/* Kobject used by the sysfs interface. */
+	/* Kobject used my Sysfs. */
 	struct kobject device_kobj;
 };
 
@@ -273,12 +272,12 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret);
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
-int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices);
+void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices);
 int btrfs_add_device(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_device *device);
 int btrfs_rm_device(struct btrfs_root *root, char *device_path);
-int btrfs_cleanup_fs_uuids(void);
+void btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size);
@@ -294,7 +293,6 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
-/*+smk*/
 struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
 			u64 logical, int mirror_num);
 int btrfs_init_device_stats(struct btrfs_fs_info *fs_info);
@@ -326,5 +324,5 @@ static inline void btrfs_device_stat_set(atomic_t *cnt, unsigned long val)
 {
 	atomic_set(cnt, val);
 }
-/*+smk*/
 #endif
+

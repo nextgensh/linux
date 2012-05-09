@@ -593,20 +593,30 @@ int btrfs_init_sysfs(void)
 int btrfs_create_device(struct kobject *super_kobj, char *dev_name)
 {
 	int ret;
-	//char device_name[256];
-	//char *device_name_ptr;
+	char device_name[64];
+	char *prev;
+	char *curr;
+	char *ptr;
+	struct kobject *kobj;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_device *device;
+
+	device = container_of(super_kobj, struct btrfs_device, device_kobj);
+	fs_info = container_of(device->dev_root, struct btrfs_fs_info, dev_root);
+	kobj = &fs_info->super_kobj; 
 
 	if(super_kobj->state_initialized) {
 		kobject_get(super_kobj);
 	}
 	else {
 		/* Convert from !dev!device to a human readable form. */
-		//strcpy(device_name,dev_name);
-		//device_name_ptr = strtok(device_name,"!");
-		//device_name_ptr = strtok(NULL,"!");
+		strcpy(device_name, dev_name);
+		printk(KERN_INFO "btrfs: device name %s", device_name);
+		for(ptr=device_name; (curr=strsep(&ptr,"/"))!=NULL; prev=curr);
+		printk(KERN_INFO "btrfs: small device name %s", prev);
 
 		ret = kobject_init_and_add(super_kobj,&btrfs_ktype_device, \
-								&btrfs_devices.kobj,"%s",dev_name);
+								&btrfs_devices.kobj,"%s",prev);
 		if (ret) {
 			kobject_put(super_kobj);
 			return -EINVAL;
