@@ -135,7 +135,7 @@ struct extent_buffer {
 	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t io_pages;
-	int failed_mirror;
+	int read_mirror;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;

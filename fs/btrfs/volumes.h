@@ -118,6 +118,7 @@ struct btrfs_device {
 
 	/* Kobject used my Sysfs. */
 	struct kobject device_kobj;
+	struct completion btrfs_device_unregister;
 };
 
 struct btrfs_fs_devices {
